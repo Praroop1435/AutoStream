@@ -1,47 +1,61 @@
 # AutoStream Agent Project
 
-A complete LangGraph-based AI agent for AutoStream, a fictional SaaS company providing automated video editing tools.
+A professional, LangGraph-powered AI agent platform for AutoStream, featuring a dynamic lead capture system and a real-time dashboard.
 
-## Setup Instructions
+## 🚀 Features
+- **Llama 3.3 70B Powered**: High-performance reasoning via Groq.
+- **Intelligent RAG**: Context-aware responses using a local knowledge base.
+- **Stateful Conversations**: Multi-turn memory management using LangGraph.
+- **Real-time Lead Dashboard**: Live tracking of captured leads and analytics.
+- **Structured Output**: Markdown-formatted responses for better readability.
 
-1. **Prerequisites**: Ensure you have Python 3.11+ and `uv` installed.
-2. **Environment**:
-   - Copy `.env.example` to `.env`.
-   - Add your `ANTHROPIC_API_KEY` (and others if needed).
-3. **Install Dependencies**:
-   ```bash
-   uv add langchain-core langchain-anthropic langchain-openai langchain-google-genai langgraph fastapi "uvicorn[standard]" "pydantic[email]" python-dotenv httpx
-   uv sync
-   ```
+## 🛠️ Local Setup
 
-## Running the Project
+Follow these steps to get the project running on your machine.
 
-### CLI Mode (Direct Interaction)
+### 1. Clone and Prepare Environment
 ```bash
-python main.py
-```
+# Clone the repository
+git clone https://github.com/Praroop1435/AutoStream.git
+cd AutoStream
 
-### API Mode (FastAPI Server)
+# Copy environment variables
+cp .env.example .env
+```
+> [!IMPORTANT]
+> Open `.env` and add your `GROQ_API_KEY`.
+
+### 2. Backend Setup
+We use `uv` for lightning-fast dependency management.
 ```bash
-uvicorn api.main:app --reload
-```
+# Install dependencies
+uv sync
 
-## Architecture Explanation
+# Run the FastAPI server
+uv run uvicorn backend.main:app --reload
+```
+The backend will be available at `http://localhost:8000`.
+
+### 3. Frontend Setup
+In a new terminal window:
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start the Next.js development server
+npm run dev
+```
+The dashboard will be available at `http://localhost:3000`.
+
+## 🧠 Architecture
 
 ### Why LangGraph?
-LangGraph was chosen over frameworks like AutoGen because it provides fine-grained control over the agent's logic through a **StateGraph**. This allowed us to explicitly define transitions between intent classification, knowledge retrieval (RAG), and tool execution. LangGraph's cyclic capability is perfect for the conversational flow where the agent might need to loop back to ask for missing lead information.
+LangGraph provides fine-grained control over the agent's logic through a **StateGraph**. This allows us to explicitly define transitions between intent classification, knowledge retrieval (RAG), and tool execution.
 
-### State Management
-Memory is managed via `AgentState` (a `TypedDict`), which uses LangGraph's `Annotated[list, add_messages]` for automatic thread-safe message merging. This ensures the conversation history is preserved across turns without manual concatenation, maintaining the context for 5-6+ turns as required.
+### Persistence & Leads
+Captured leads are stored in a local SQLite database (`autostream.db`). The dashboard fetches these in real-time, allowing you to track user interest and platforms (YouTube, TikTok, etc.) dynamically.
 
-### Tool Calling Discipline
-The conditional routing in `agent/graph.py` ensures that the `lead_capture` tool is **never** triggered prematurely. The graph only routes to the `execute_lead_capture` node after the `generate_response` node confirms that all three required fields (`name`, `email`, `platform`) have been collected and that the lead hasn't been captured yet.
-
-## WhatsApp Deployment
-
-1. **Webhook Exposure**: Expose the `POST /webhook` endpoint using a public URL (e.g., via `ngrok` or a cloud provider).
-2. **Meta Dashboard**: Register the URL in the Meta WhatsApp Business API dashboard under Webhooks.
-3. **Session Processing**:
-   - Parse the incoming `wa_id` (sender's phone number) from the WhatsApp payload.
-   - Use `wa_id` as the `session_id` in our `api/routes.py` to isolate state across users.
-4. **Sending Replies**: Use the WhatsApp Cloud API's `messages` endpoint to send the agent's response back to the user's phone number.
+### AI Model
+We use **Meta's Llama 3.3 70B** via the **Groq** API for ultra-low latency and high-quality responses, configured with exponential backoff retries to handle API demand spikes.
