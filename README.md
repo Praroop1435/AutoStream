@@ -49,13 +49,25 @@ npm run dev
 ```
 The dashboard will be available at `http://localhost:3000`.
 
-## 🧠 Architecture
+## 🧠 Architecture Explanation
 
-### Why LangGraph?
-LangGraph provides fine-grained control over the agent's logic through a **StateGraph**. This allows us to explicitly define transitions between intent classification, knowledge retrieval (RAG), and tool execution.
+### Why LangGraph over AutoGen?
+We specifically chose **LangGraph** over frameworks like AutoGen because building a reliable sales and support agent requires fine-grained, deterministic control over the conversational flow. While AutoGen excels at autonomous multi-agent brainstorming, the AutoStream assistant needs strict, predictable boundaries: classifying intents, retrieving specific context (RAG), and reliably capturing leads without hallucinating tool calls. 
 
-### Persistence & Leads
-Captured leads are stored in a local SQLite database (`autostream.db`). The dashboard fetches these in real-time, allowing you to track user interest and platforms (YouTube, TikTok, etc.) dynamically.
+LangGraph’s **StateGraph** architecture allows us to define explicit nodes and conditional routing. For instance, the agent is structurally guided through a deterministic pipeline that guarantees a lead capture form is generated if and only if high intent is detected.
 
-### AI Model
-We use **Meta's Llama 3.3 70B** via the **Groq** API for ultra-low latency and high-quality responses, configured with exponential backoff retries to handle API demand spikes.
+### How State is Managed
+State is maintained via a strongly typed `AgentState` dictionary. We use LangGraph’s `Annotated[list, add_messages]` to seamlessly handle conversation history. As a user interacts with the FastAPI backend, their `session_id` and `user_id` are mapped to our local SQLite database. On each incoming request, we load their historical messages from the database directly into the `AgentState`. As the graph executes, individual nodes read from the state (e.g., checking for missing lead fields) and append new AIMessages or tool outcomes. Finally, the generated messages are synced back to the database, providing a robust, long-term memory that survives server restarts and scales efficiently.
+
+## 📱 WhatsApp Deployment Question
+
+**How would you integrate this agent with WhatsApp using Webhooks?**
+
+Integrating the AutoStream agent with WhatsApp involves establishing a two-way communication channel using the Meta WhatsApp Cloud API:
+
+1. **Webhook Endpoint Setup**: We expose a `POST /webhook` route on our FastAPI server to act as the listener for Meta's incoming events. We also need a `GET /webhook` route to handle Meta's initial token verification challenge.
+2. **Meta Dashboard Configuration**: In the Meta Developer Portal, we configure the webhook URL (making it publicly accessible via a cloud deployment or ngrok) and subscribe to `messages` webhooks.
+3. **Handling Incoming Messages**: When a user sends a message, Meta sends a JSON payload to our webhook. We extract the sender's phone number (`wa_id`) and the message body.
+4. **Session Mapping**: We use the `wa_id` as the unique `session_id` to fetch the user's historical `AgentState` from our database.
+5. **Agent Execution**: We invoke our LangGraph pipeline with the new message and the retrieved state.
+6. **Sending Replies**: Once the agent generates a response, we make a `POST` request back to the WhatsApp Cloud API's `/messages` endpoint—authenticated with our Page Access Token—to deliver the response directly to the user's WhatsApp interface.

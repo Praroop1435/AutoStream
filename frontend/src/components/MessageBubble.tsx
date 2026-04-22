@@ -56,7 +56,9 @@ const MessageBubble: React.FC<{ message: Message }> = ({ message }) => {
           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
         }}
       >
-        <ReactMarkdown>{message.content}</ReactMarkdown>
+        <div className="markdown-content">
+          <ReactMarkdown>{message.content}</ReactMarkdown>
+        </div>
       </div>
     </motion.div>
   );

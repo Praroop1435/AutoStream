@@ -57,24 +57,31 @@ def generate_response(state: AgentState) -> AgentState:
         "You are a friendly and helpful sales assistant for AutoStream. "
         "AutoStream provides automated video editing tools for creators.\n"
         "Your goal is to answer questions accurately and guide high-intent users to sign up.\n"
-        "FORMATTING: Use Markdown to structure your response. Use bullet points for lists, "
-        "bold text for emphasis, and ensure proper spacing between paragraphs.\n"
+        "FORMATTING: Use Markdown to structure your response professionally. "
+        "Use ### headers for main sections, --- horizontal rules for logical breaks, "
+        "and bold keywords for emphasis. Ensure proper vertical spacing between sections. "
+        "Always end with a '---' followed by a '### Next Steps' section if applicable.\n"
         f"{rag_snippet}\n\n"
         "LEAD CAPTURE LOGIC:\n"
-        "If the user's intent is 'high_intent', you must collect three pieces of information one by one: "
-        "Name, Email, and Creator Platform (e.g., YouTube, TikTok).\n"
+        "If the user's intent is 'high_intent', you must collect their Name, Email, and Creator Platform.\n"
     )
     
     lead_info = state.get("lead_info", {})
     if state["intent"] == "high_intent":
-        if not lead_info.get("name"):
-            system_prompt += "Currently, you are missing their Name. Ask for it politely."
-        elif not lead_info.get("email"):
-            system_prompt += f"You have their name ({lead_info['name']}), but missing their Email. Ask for it."
-        elif not lead_info.get("platform"):
-            system_prompt += f"You have their name and email, but missing their Creator Platform. Ask for it."
+        missing_fields = []
+        if not lead_info.get("name"): missing_fields.append("Name")
+        if not lead_info.get("email"): missing_fields.append("Email")
+        if not lead_info.get("platform"): missing_fields.append("Creator Platform")
+        
+        if missing_fields:
+            system_prompt += (
+                f"\nYou are currently missing the following information: {', '.join(missing_fields)}. "
+                "Ask the user to provide ALL of the missing information at once in your response. "
+                "Present a clean Markdown bulleted list or a 'form' format so they can easily fill it out in one go. "
+                "Do NOT ask for them one by one."
+            )
         else:
-            system_prompt += "You have all lead info. Confirm that you are processing their sign-up."
+            system_prompt += "\nYou have all lead info. Confirm that you are processing their sign-up and provide exciting details about their next steps."
 
     response = invoke_with_retry(llm, [SystemMessage(content=system_prompt)] + state["messages"])
     last_user_message = state["messages"][-1].content
